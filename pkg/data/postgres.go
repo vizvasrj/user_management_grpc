@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"reflect"
 	"src/pkg/misc"
 	"src/user_proto"
 
@@ -74,6 +75,7 @@ func (r *PostgresDB) SearchUsers(ctx context.Context, criteria []*user_proto.Sea
 	args := []interface{}{}
 	var index int = 1
 
+	// Build WHERE clause for all criteria except OR
 	for _, criterion := range criteria {
 		switch criterion.Operator {
 		case user_proto.Operator_EQ:
@@ -86,28 +88,20 @@ func (r *PostgresDB) SearchUsers(ctx context.Context, criteria []*user_proto.Sea
 			query += fmt.Sprintf(" AND %s >= $%d", criterion.Field, index)
 		case user_proto.Operator_LTE:
 			query += fmt.Sprintf(" AND %s <= $%d", criterion.Field, index)
-		case user_proto.Operator_OR:
-			// Implement OR logic for combining multiple criteria
-			query += fmt.Sprintf(" OR (%s = $%d", criterion.Field, index)
-			args = append(args, criterion.Value)
-			index++
-			for i := 1; i < len(criteria)-1; i++ {
-				query += fmt.Sprintf(" OR %s = $%d", criterion.Field, index)
-				args = append(args, criteria[i].Value)
-				index++
-			}
-			query += ")"
 		case user_proto.Operator_BETWEEN:
 			if criterion.RangeCriteria != nil {
 				query += fmt.Sprintf(" AND %s BETWEEN $%d AND $%d",
 					criterion.Field, index, index+1)
 				args = append(args, criterion.RangeCriteria.StartValue, criterion.RangeCriteria.EndValue)
-				index += 2 // Increment index for both range values
+				index += 2
 			}
 		}
-
-		// Increment index for each criterion
 		index++
+	}
+
+	// Remove the initial "AND" if no other conditions were added
+	if index == 2 {
+		query = "SELECT * FROM users"
 	}
 
 	rows, err := r.Db.Query(query, args...)
@@ -130,8 +124,23 @@ func (r *PostgresDB) SearchUsers(ctx context.Context, criteria []*user_proto.Sea
 		return nil, err
 	}
 
-	return users, nil
+	// Filter users based on OR conditions in Golang
+	filteredUsers := []*user_proto.User{}
+	for _, criterion := range criteria {
+		if criterion.Operator == user_proto.Operator_OR {
+			for _, user := range users {
+				userValue := reflect.ValueOf(user).FieldByName(criterion.Field).Interface()
+				if userValue == criterion.Value {
+					filteredUsers = append(filteredUsers, user)
+					break // No need to check other users for this OR condition
+				}
+			}
+		}
+	}
+
+	return filteredUsers, nil
 }
+
 func (p *PostgresDB) AddUser(user *user_proto.User) (*user_proto.User, error) {
 	err := p.Db.QueryRow("INSERT INTO users (id, fname, city, phone, height, married) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id", user.Id, user.Fname, user.City, user.Phone, user.Height, user.Married).Scan(&user.Id)
 	if err != nil {

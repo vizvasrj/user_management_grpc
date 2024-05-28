@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"src/pkg/data"
 	"src/user_proto"
 )
@@ -33,13 +34,12 @@ func (s *UserService) GetUsersByIds(ctx context.Context, req *user_proto.GetUser
 	return &user_proto.Users{Users: foundUsers}, nil
 }
 
-func (s *UserService) SearchUsers(ctx context.Context, criteria []*user_proto.SearchCriteria) (*user_proto.Users, error) {
-	// Search for users based on criteria
-	foundUsers, err := s.Db.SearchUsers(ctx, criteria)
+func (s *UserService) SearchUsers(ctx context.Context, req *user_proto.SearchUsersRequest) (*user_proto.Users, error) {
+	results, err := s.Db.SearchUsers(ctx, req.Criteria)
 	if err != nil {
-		fmt.Println("Error: ", err)
+		log.Printf("Error searching users: %v", err)
 		return nil, err
 	}
 
-	return &user_proto.Users{Users: foundUsers}, nil
+	return &user_proto.Users{Users: results}, nil
 }
