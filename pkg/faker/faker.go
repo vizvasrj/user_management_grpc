@@ -27,7 +27,8 @@ func generateRandomPhoneNumber() int64 {
 
 // generateRandomHeight generates a random height between 4.5 and 6.5 feet.
 func generateRandomHeight() float32 {
-	return float32(rand.Float64()*2.0 + 4.5) // Height between 4.5 and 6.5
+	height := float32(rand.Float64()*2.0 + 4.5)
+	return float32(int(height*10)) / 10 // Round to 1 decimal place
 }
 
 // generateRandomMaritalStatus generates a random marital status (true/false).

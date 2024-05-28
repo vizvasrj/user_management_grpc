@@ -27,13 +27,6 @@ message SearchUsersRequest {
 message SearchCriteria {
     string field = 1; // Name of the field to search (e.g., "city", "married", etc.)
     string value = 2; // Value to match
-    SearchOperator operator = 3; // AND or OR operator
-}
-
-// Enum for Search Operators
-enum SearchOperator {
-    AND = 0;
-    OR = 1;
 }
 
 
