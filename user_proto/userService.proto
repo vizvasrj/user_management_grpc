@@ -27,6 +27,24 @@ message SearchUsersRequest {
 message SearchCriteria {
     string field = 1; // Name of the field to search (e.g., "city", "married", etc.)
     string value = 2; // Value to match
+    Operator operator = 3; // Operator for the criteria
+    Range range_criteria = 4; // Range criteria 
+}
+
+// Enum for operators
+enum Operator {
+    EQ = 0;  // Equal to
+    GT = 1;  // Greater than
+    LT = 2;  // Less than
+    GTE = 3; // Greater than or equal to
+    LTE = 4; // Less than or equal to
+    OR = 5;  // Logical OR 
+    BETWEEN = 6; // Between
+}
+
+message Range {
+    string start_value = 1; 
+    string end_value = 2;
 }
 
 

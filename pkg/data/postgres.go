@@ -69,48 +69,69 @@ func (p *PostgresDB) GetUsersByIds(ctx context.Context, ids []int32) ([]*user_pr
 	return users, nil
 }
 
-func (p *PostgresDB) SearchUsers(ctx context.Context, req *user_proto.SearchUsersRequest) ([]*user_proto.User, error) {
-	users := make([]*user_proto.User, 0)
-	query := "SELECT id, fname, city, phone, height, married FROM users WHERE "
-	args := make([]interface{}, 0)
-	for i, criterion := range req.Criteria {
-		if i > 0 {
-			query += " AND "
+func (r *PostgresDB) SearchUsers(ctx context.Context, criteria []*user_proto.SearchCriteria) ([]*user_proto.User, error) {
+	query := "SELECT * FROM users WHERE 1=1" // Start with base query
+	args := []interface{}{}
+	var index int = 1
+
+	for _, criterion := range criteria {
+		switch criterion.Operator {
+		case user_proto.Operator_EQ:
+			query += fmt.Sprintf(" AND %s = $%d", criterion.Field, index)
+		case user_proto.Operator_GT:
+			query += fmt.Sprintf(" AND %s > $%d", criterion.Field, index)
+		case user_proto.Operator_LT:
+			query += fmt.Sprintf(" AND %s < $%d", criterion.Field, index)
+		case user_proto.Operator_GTE:
+			query += fmt.Sprintf(" AND %s >= $%d", criterion.Field, index)
+		case user_proto.Operator_LTE:
+			query += fmt.Sprintf(" AND %s <= $%d", criterion.Field, index)
+		case user_proto.Operator_OR:
+			// Implement OR logic for combining multiple criteria
+			query += fmt.Sprintf(" OR (%s = $%d", criterion.Field, index)
+			args = append(args, criterion.Value)
+			index++
+			for i := 1; i < len(criteria)-1; i++ {
+				query += fmt.Sprintf(" OR %s = $%d", criterion.Field, index)
+				args = append(args, criteria[i].Value)
+				index++
+			}
+			query += ")"
+		case user_proto.Operator_BETWEEN:
+			if criterion.RangeCriteria != nil {
+				query += fmt.Sprintf(" AND %s BETWEEN $%d AND $%d",
+					criterion.Field, index, index+1)
+				args = append(args, criterion.RangeCriteria.StartValue, criterion.RangeCriteria.EndValue)
+				index += 2 // Increment index for both range values
+			}
 		}
-		switch criterion.Field {
-		case "city":
-			query += fmt.Sprintf("city = $%d", len(args)+1)
-			args = append(args, criterion.Value)
-		case "married":
-			query += fmt.Sprintf("married = $%d", len(args)+1)
-			args = append(args, criterion.Value)
-		case "height":
-			query += fmt.Sprintf("height = $%d", len(args)+1)
-			args = append(args, criterion.Value)
-		case "phone":
-			query += fmt.Sprintf("phone = $%d", len(args)+1)
-			args = append(args, criterion.Value)
-		case "fname":
-			query += fmt.Sprintf("fname = $%d", len(args)+1)
-			args = append(args, criterion.Value)
-		}
+
+		// Increment index for each criterion
+		index++
 	}
-	rows, err := p.Db.Query(query, args...)
+
+	rows, err := r.Db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
+	// Execute the query and handle results
+	var users []*user_proto.User
 	for rows.Next() {
-		user := &user_proto.User{}
-		err := rows.Scan(&user.Id, &user.Fname, &user.City, &user.Phone, &user.Height, &user.Married)
-		if err != nil {
+		var u user_proto.User
+		if err := rows.Scan(&u.Id, &u.Fname, &u.City, &u.Phone, &u.Height, &u.Married); err != nil {
 			return nil, err
 		}
-		users = append(users, user)
+		users = append(users, &u)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return users, nil
 }
-
 func (p *PostgresDB) AddUser(user *user_proto.User) (*user_proto.User, error) {
 	err := p.Db.QueryRow("INSERT INTO users (id, fname, city, phone, height, married) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id", user.Id, user.Fname, user.City, user.Phone, user.Height, user.Married).Scan(&user.Id)
 	if err != nil {

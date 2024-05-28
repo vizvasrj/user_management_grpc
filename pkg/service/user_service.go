@@ -33,9 +33,9 @@ func (s *UserService) GetUsersByIds(ctx context.Context, req *user_proto.GetUser
 	return &user_proto.Users{Users: foundUsers}, nil
 }
 
-func (s *UserService) SearchUsers(ctx context.Context, req *user_proto.SearchUsersRequest) (*user_proto.Users, error) {
+func (s *UserService) SearchUsers(ctx context.Context, criteria []*user_proto.SearchCriteria) (*user_proto.Users, error) {
 	// Search for users based on criteria
-	foundUsers, err := s.Db.SearchUsers(ctx, req)
+	foundUsers, err := s.Db.SearchUsers(ctx, criteria)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return nil, err

@@ -5,7 +5,6 @@ import (
 	"log"
 	"net"
 	"src/pkg/data"
-	"src/pkg/faker"
 	"src/pkg/service"
 	"src/user_proto"
 
@@ -15,18 +14,18 @@ import (
 
 func main() {
 	fmt.Println("service is stated")
-	fakeUsers := faker.GenerateFakeUsers(10)
 	db := data.GetConnection()
 	defer db.Close()
 
 	pgInstance := data.NewPostgresDB(db)
-	for _, user := range fakeUsers {
-		id, err := pgInstance.AddUser(user)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println("User added with ID: ", id)
-	}
+	// fakeUsers := faker.GenerateFakeUsers(10)
+	// for _, user := range fakeUsers {
+	// 	id, err := pgInstance.AddUser(user)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	fmt.Println("User added with ID: ", id)
+	// }
 
 	// users := []*user_proto.User{}
 	// user := &user_proto.User{Id: 1, Fname: "Steve", City: "LA", Phone: 1234567890, Height: 5.8, Married: true}
