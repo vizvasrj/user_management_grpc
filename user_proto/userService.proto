@@ -18,13 +18,24 @@ message GetUsersByIdsRequest {
     repeated int32 ids = 1;
 }
 
+// Enhanced SearchUsersRequest
 message SearchUsersRequest {
-    string city = 1;
-    bool married = 2;
-    float height = 3;
-    int64 phone = 4;
-    string fname = 5;
+    repeated SearchCriteria criteria = 1; // List of search criteria
 }
+
+// SearchCriteria message to define individual search conditions
+message SearchCriteria {
+    string field = 1; // Name of the field to search (e.g., "city", "married", etc.)
+    string value = 2; // Value to match
+    SearchOperator operator = 3; // AND or OR operator
+}
+
+// Enum for Search Operators
+enum SearchOperator {
+    AND = 0;
+    OR = 1;
+}
+
 
 message User {
     int32 id = 1;

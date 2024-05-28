@@ -15,7 +15,7 @@ import (
 
 func main() {
 	fmt.Println("service is stated")
-	fakeUsers := faker.GenerateFakeUsers(10)
+	fakeUsers := faker.GenerateFakeUsers(20)
 	users := []*user_proto.User{}
 	// user := &user_proto.User{Id: 1, Fname: "Steve", City: "LA", Phone: 1234567890, Height: 5.8, Married: true}
 	users = append(users, fakeUsers...)

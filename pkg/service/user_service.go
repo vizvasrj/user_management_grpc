@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"src/pkg/data"
 	"src/user_proto"
+	"strconv"
 )
 
 type UserService struct {
@@ -37,15 +38,52 @@ func (s *UserService) GetUsersByIds(ctx context.Context, req *user_proto.GetUser
 }
 
 func (s *UserService) SearchUsers(ctx context.Context, req *user_proto.SearchUsersRequest) (*user_proto.Users, error) {
-	// Implement search logic based on criteria
 	foundUsers := make([]*user_proto.User, 0)
-	for _, user := range s.Db.Users {
-		if req.City != "" && user.City == req.City { // Example search
-			foundUsers = append(foundUsers, user)
-		} else if req.Married && user.Married { // Example search
-			foundUsers = append(foundUsers, user)
+
+	// Iterate over all criteria
+	for _, criterion := range req.Criteria {
+		// Define a function to check a single criterion
+		checkCriterion := func(user *user_proto.User) bool {
+			switch criterion.Field {
+			case "city":
+				return user.City == criterion.Value
+			case "married":
+				married, _ := strconv.ParseBool(criterion.Value) // Handle string bool
+				return user.Married == married
+			case "height":
+				height, _ := strconv.ParseFloat(criterion.Value, 32) // Handle string float
+				return user.Height == float32(height)
+			case "phone":
+				phone, _ := strconv.ParseInt(criterion.Value, 10, 64) // Handle string int64
+				return user.Phone == phone
+			case "fname":
+				return user.Fname == criterion.Value
+			default:
+				return false // Ignore unknown fields
+			}
 		}
-		// Add more search criteria logic
+
+		// Apply the search logic based on the operator
+		switch criterion.Operator {
+		case user_proto.SearchOperator_AND:
+			// AND logic: All criteria must match
+			for _, user := range s.Db.Users {
+				if checkCriterion(user) {
+					foundUsers = append(foundUsers, user)
+				}
+			}
+		case user_proto.SearchOperator_OR:
+			// OR logic: At least one criterion must match
+			for _, user := range s.Db.Users {
+				if checkCriterion(user) {
+					foundUsers = append(foundUsers, user)
+					break // Move to the next criterion
+				}
+			}
+		default:
+			return nil, fmt.Errorf("unknown search operator: %v", criterion.Operator)
+		}
 	}
+
 	return &user_proto.Users{Users: foundUsers}, nil
 }
