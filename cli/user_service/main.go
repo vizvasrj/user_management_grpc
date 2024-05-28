@@ -16,18 +16,30 @@ import (
 func main() {
 	fmt.Println("service is stated")
 	fakeUsers := faker.GenerateFakeUsers(10)
-	users := []*user_proto.User{}
-	// user := &user_proto.User{Id: 1, Fname: "Steve", City: "LA", Phone: 1234567890, Height: 5.8, Married: true}
-	users = append(users, fakeUsers...)
+	db := data.GetConnection()
+	defer db.Close()
 
-	db := data.NewInMemoryUserRepository(users)
+	pgInstance := data.NewPostgresDB(db)
+	for _, user := range fakeUsers {
+		id, err := pgInstance.AddUser(user)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("User added with ID: ", id)
+	}
+
+	// users := []*user_proto.User{}
+	// user := &user_proto.User{Id: 1, Fname: "Steve", City: "LA", Phone: 1234567890, Height: 5.8, Married: true}
+	// users = append(users, fakeUsers...)
+
+	// db = data.NewInMemoryUserRepository(users)
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
 	s := grpc.NewServer()
-	user_proto.RegisterUserServiceServer(s, &service.UserService{Db: db})
+	user_proto.RegisterUserServiceServer(s, &service.UserService{Db: pgInstance})
 
 	reflection.Register(s)
 	if err := s.Serve(lis); err != nil {
