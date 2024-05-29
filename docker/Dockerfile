@@ -29,6 +29,6 @@ COPY --from=builder /app/migrations ./migrations
 
 
 RUN ls /usr/local/bin/migrate
-CMD ["sh", "-c", "migrate -path ./migrations -database postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB} up && ./main"]
+# CMD ["sh", "-c", "migrate -path ./migrations -database postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB} up && ./main"]
 # Run the application
-# CMD ["./main"]
+CMD ["./main"]
