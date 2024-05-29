@@ -1,4 +1,3 @@
--- Add up migration script here
 create table Users (
     Id INT PRIMARY KEY,
     Fname VARCHAR(255),
