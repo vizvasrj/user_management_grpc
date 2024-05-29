@@ -1,0 +1,28 @@
+version: '3'
+services:
+  db:
+    image: postgres:16
+    volumes:
+    - ./migrations:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: grpctemp
+
+  
+  app:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    depends_on:
+      - db
+    ports:
+      - "50051:50051"
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=grpctemp
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_SSLMODE=disable
+    command: ["./main"]

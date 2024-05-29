@@ -5,9 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"reflect"
 	"src/pkg/misc"
 	"src/user_proto"
+	"strconv"
+	"strings"
 
 	"github.com/lib/pq"
 )
@@ -43,7 +44,7 @@ func NewPostgresDB(db *sql.DB) *PostgresDB {
 	return &PostgresDB{Db: db}
 }
 
-func (p *PostgresDB) GetUserById(ctx context.Context, id int32) (*user_proto.User, error) {
+func (p *PostgresDB) DbGetUserById(ctx context.Context, id int32) (*user_proto.User, error) {
 	user := &user_proto.User{}
 	err := p.Db.QueryRow("SELECT id, fname, city, phone, height, married FROM users WHERE id = $1", id).Scan(&user.Id, &user.Fname, &user.City, &user.Phone, &user.Height, &user.Married)
 	if err != nil {
@@ -52,7 +53,7 @@ func (p *PostgresDB) GetUserById(ctx context.Context, id int32) (*user_proto.Use
 	return user, nil
 }
 
-func (p *PostgresDB) GetUsersByIds(ctx context.Context, ids []int32) ([]*user_proto.User, error) {
+func (p *PostgresDB) DbGetUsersByIds(ctx context.Context, ids []int32) ([]*user_proto.User, error) {
 	users := make([]*user_proto.User, 0)
 	rows, err := p.Db.Query("SELECT id, fname, city, phone, height, married FROM users WHERE id = ANY($1)", pq.Array(ids))
 	if err != nil {
@@ -70,47 +71,54 @@ func (p *PostgresDB) GetUsersByIds(ctx context.Context, ids []int32) ([]*user_pr
 	return users, nil
 }
 
-func (r *PostgresDB) SearchUsers(ctx context.Context, criteria []*user_proto.SearchCriteria) ([]*user_proto.User, error) {
-	query := "SELECT * FROM users WHERE 1=1" // Start with base query
+func (s *PostgresDB) DbSearchUsers(ctx context.Context, req *user_proto.SearchUsersRequest) ([]*user_proto.User, error) {
+	query := "SELECT * FROM users WHERE 1=1"
 	args := []interface{}{}
 	var index int = 1
 
-	// Build WHERE clause for all criteria except OR
-	for _, criterion := range criteria {
-		switch criterion.Operator {
-		case user_proto.Operator_EQ:
-			query += fmt.Sprintf(" AND %s = $%d", criterion.Field, index)
-		case user_proto.Operator_GT:
-			query += fmt.Sprintf(" AND %s > $%d", criterion.Field, index)
-		case user_proto.Operator_LT:
-			query += fmt.Sprintf(" AND %s < $%d", criterion.Field, index)
-		case user_proto.Operator_GTE:
-			query += fmt.Sprintf(" AND %s >= $%d", criterion.Field, index)
-		case user_proto.Operator_LTE:
-			query += fmt.Sprintf(" AND %s <= $%d", criterion.Field, index)
-		case user_proto.Operator_BETWEEN:
-			if criterion.RangeCriteria != nil {
-				query += fmt.Sprintf(" AND %s BETWEEN $%d AND $%d",
-					criterion.Field, index, index+1)
-				args = append(args, criterion.RangeCriteria.StartValue, criterion.RangeCriteria.EndValue)
-				index += 2
+	// Handle filter criteria (e.g., city="Sydney|New York|Tokyo")
+	for field, filterValue := range req.Filters {
+		filterValues := strings.Split(filterValue, "|")
+		for i, v := range filterValues {
+			if i == 0 {
+				query += fmt.Sprintf(" AND (%s = $%d", field, index)
+			} else {
+				query += fmt.Sprintf(" OR %s = $%d", field, index)
 			}
+			args = append(args, v)
+			index++
 		}
-		index++
+		query += ")"
 	}
 
-	// Remove the initial "AND" if no other conditions were added
-	if index == 2 {
-		query = "SELECT * FROM users"
+	// Handle range filters (e.g., low_height=5.0 high_height=6.0)
+	for field, filterValue := range req.RangeFilters {
+		filterValues := strings.Split(filterValue, " ")
+		if len(filterValues) == 2 {
+			// Assuming range filters are always "low_field high_field"
+			lowValue, err := strconv.ParseFloat(filterValues[0], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid low value for field %s: %v", field, err)
+			}
+			highValue, err := strconv.ParseFloat(filterValues[1], 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid high value for field %s: %v", field, err)
+			}
+			query += fmt.Sprintf(" AND %s BETWEEN $%d AND $%d", field, index, index+1)
+			args = append(args, lowValue, highValue)
+			index += 2
+		} else {
+			return nil, fmt.Errorf("invalid range filter for field %s: expected 'low_value high_value'", field)
+		}
 	}
 
-	rows, err := r.Db.Query(query, args...)
+	rows, err := s.Db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	// Execute the query and handle results
+	// Scan results into User objects
 	var users []*user_proto.User
 	for rows.Next() {
 		var u user_proto.User
@@ -124,21 +132,7 @@ func (r *PostgresDB) SearchUsers(ctx context.Context, criteria []*user_proto.Sea
 		return nil, err
 	}
 
-	// Filter users based on OR conditions in Golang
-	filteredUsers := []*user_proto.User{}
-	for _, criterion := range criteria {
-		if criterion.Operator == user_proto.Operator_OR {
-			for _, user := range users {
-				userValue := reflect.ValueOf(user).FieldByName(criterion.Field).Interface()
-				if userValue == criterion.Value {
-					filteredUsers = append(filteredUsers, user)
-					break // No need to check other users for this OR condition
-				}
-			}
-		}
-	}
-
-	return filteredUsers, nil
+	return users, nil
 }
 
 func (p *PostgresDB) AddUser(user *user_proto.User) (*user_proto.User, error) {

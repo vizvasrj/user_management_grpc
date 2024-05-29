@@ -16,7 +16,7 @@ type UserService struct {
 func (s *UserService) GetUserById(ctx context.Context, req *user_proto.GetUserByIdRequest) (*user_proto.User, error) {
 	// Fetch user by ID
 
-	user, err := s.Db.GetUserById(ctx, req.Id)
+	user, err := s.Db.DbGetUserById(ctx, req.Id)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return nil, err
@@ -26,7 +26,7 @@ func (s *UserService) GetUserById(ctx context.Context, req *user_proto.GetUserBy
 
 func (s *UserService) GetUsersByIds(ctx context.Context, req *user_proto.GetUsersByIdsRequest) (*user_proto.Users, error) {
 	// Fetch users by IDs
-	foundUsers, err := s.Db.GetUsersByIds(ctx, req.Ids)
+	foundUsers, err := s.Db.DbGetUsersByIds(ctx, req.Ids)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return nil, err
@@ -35,7 +35,7 @@ func (s *UserService) GetUsersByIds(ctx context.Context, req *user_proto.GetUser
 }
 
 func (s *UserService) SearchUsers(ctx context.Context, req *user_proto.SearchUsersRequest) (*user_proto.Users, error) {
-	results, err := s.Db.SearchUsers(ctx, req.Criteria)
+	results, err := s.Db.DbSearchUsers(ctx, req)
 	if err != nil {
 		log.Printf("Error searching users: %v", err)
 		return nil, err
