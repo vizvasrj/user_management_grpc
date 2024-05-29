@@ -18,11 +18,12 @@ type PostgresDB struct {
 }
 
 func GetConnection() *sql.DB {
-	dbuser := misc.GetEnv("dbuser")
-	dbpassword := misc.GetEnv("dbpassword")
-	dbname := misc.GetEnv("dbname")
-	dbsslmode := misc.GetEnv("dbsslmode")
-	connStr := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=%s", dbuser, dbpassword, dbname, dbsslmode)
+	dbuser := misc.GetEnv("POSTGRES_USER")
+	dbpassword := misc.GetEnv("POSTGRES_PASSWORD")
+	dbname := misc.GetEnv("POSTGRES_DB")
+	dbsslmode := misc.GetEnv("POSTGRES_SSLMODE")
+	host := misc.GetEnv("POSTGRES_HOST")
+	connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=%s", host, dbuser, dbpassword, dbname, dbsslmode)
 	fmt.Println(connStr)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
