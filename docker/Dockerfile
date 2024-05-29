@@ -7,15 +7,25 @@ WORKDIR /app
 # Copy the local package files to the container's workspace
 COPY . .
 
+# Install migrate tool
+RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
 # Build the Go app
 RUN go build -o main ./cli/user_service/main.go
 
-# Use postgres as base image for the runtime
-FROM postgres:latest
+# Use a minimal image for the runtime
+FROM alpine:latest
+
+# Install necessary dependencies
+RUN apk --no-cache add ca-certificates
 
 # Set the working directory
-WORKDIR /docker-entrypoint-initdb.d
+WORKDIR /root/
 
-# Copy the migrations folder and seed data from the builder stage
-COPY --from=builder /app/migrations /docker-entrypoint-initdb.d/
-COPY --from=builder /app/seed/seed.sql /docker-entrypoint-initdb.d/
+# Copy the built binary and other necessary files from the builder stage
+COPY --from=builder /go/bin/migrate /usr/local/bin/migrate
+COPY --from=builder /app/main .
+COPY --from=builder /app/migrations ./migrations
+
+# Run the application
+CMD ["./main"]
