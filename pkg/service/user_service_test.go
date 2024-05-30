@@ -1,11 +1,12 @@
-package main
+package service
 
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
+	"os"
 	"src/pkg/data"
-	"src/pkg/service"
 	"src/user_proto"
 	"testing"
 
@@ -20,13 +21,35 @@ var lis *bufconn.Listener
 func init() {
 	fmt.Println("Test service is stated")
 	lis = bufconn.Listen(bufSize)
-	db := data.GetConnection()
-	// defer db.Close()
-
-	pgInstance := data.NewPostgresDB(db)
-
+	useDb := os.Getenv("USE_DATABASE")
+	fmt.Println("USE_DATABASE: ", useDb)
 	s := grpc.NewServer()
-	user_proto.RegisterUserServiceServer(s, &service.UserService{Db: pgInstance})
+	if useDb == "postgres" {
+		db := data.GetConnection()
+		// defer db.Close()
+
+		pgInstance := data.NewPostgresDB(db)
+
+		user_proto.RegisterUserServiceServer(s, &UserService{Db: pgInstance})
+
+	} else if useDb == "inmemory" {
+		users := []*user_proto.User{
+			{Id: 1, Fname: "Jane", City: "Tokyo", Phone: 1764788495, Height: 4.9, Married: true},
+			{Id: 2, Fname: "William", City: "Chicago", Phone: 3147005163, Height: 6.0, Married: true},
+			{Id: 3, Fname: "Jane", City: "Sydney", Phone: 5660612778, Height: 5.2, Married: false},
+			{Id: 4, Fname: "Olivia", City: "Paris", Phone: 7499978875, Height: 5.0, Married: false},
+			{Id: 5, Fname: "Olivia", City: "New York", Phone: 4934669609, Height: 5.8, Married: true},
+			{Id: 6, Fname: "Olivia", City: "Berlin", Phone: 3935422070, Height: 6.2, Married: false},
+			{Id: 7, Fname: "Peter", City: "Chicago", Phone: 1389433165, Height: 5.7, Married: false},
+			{Id: 8, Fname: "Susan", City: "Paris", Phone: 5307397290, Height: 6.1, Married: false},
+			{Id: 9, Fname: "Olivia", City: "Madrid", Phone: 5199527895, Height: 4.6, Married: false},
+			{Id: 10, Fname: "Olivia", City: "Madrid", Phone: 8354340417, Height: 5.5, Married: true},
+		}
+		db := data.NewInMemoryUserRepository(users)
+		user_proto.RegisterUserServiceServer(s, &UserService{Db: db})
+	} else {
+		log.Fatal("USE_DATABASE not set")
+	}
 	go s.Serve(lis)
 }
 
@@ -45,11 +68,11 @@ func TestGetUserById(t *testing.T) {
 	ctx := context.Background()
 
 	// Test fetching an existing user
-	user, err := c.GetUserById(ctx, &user_proto.GetUserByIdRequest{Id: 1})
+	user, err := c.GetUserById(ctx, &user_proto.GetUserByIdRequest{Id: 2})
 	if err != nil {
 		t.Fatalf("GetUserById failed: %v", err)
 	}
-	if user.Id != 1 || user.Fname != "Jane" {
+	if user.Id != 2 || user.Fname != "William" {
 		t.Errorf("Unexpected user data: %v", user)
 	}
 

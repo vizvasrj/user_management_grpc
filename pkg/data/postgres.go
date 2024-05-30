@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"log"
 	"src/pkg/misc"
+	"src/pkg/myerror"
 	"src/user_proto"
-	"strconv"
-	"strings"
 
 	"github.com/lib/pq"
 )
@@ -29,7 +28,7 @@ func GetConnection() *sql.DB {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// defer db.Close() //! remove
+	// defer db.Close()
 	err = db.Ping()
 	if err != nil {
 		log.Fatal(err)
@@ -49,7 +48,7 @@ func (p *PostgresDB) DbGetUserById(ctx context.Context, id int32) (*user_proto.U
 	user := &user_proto.User{}
 	err := p.Db.QueryRow("SELECT id, fname, city, phone, height, married FROM users WHERE id = $1", id).Scan(&user.Id, &user.Fname, &user.City, &user.Phone, &user.Height, &user.Married)
 	if err != nil {
-		return nil, err
+		return nil, myerror.WrapError(err, "Error in fetching user")
 	}
 	return user, nil
 }
@@ -58,17 +57,18 @@ func (p *PostgresDB) DbGetUsersByIds(ctx context.Context, ids []int32) ([]*user_
 	users := make([]*user_proto.User, 0)
 	rows, err := p.Db.Query("SELECT id, fname, city, phone, height, married FROM users WHERE id = ANY($1)", pq.Array(ids))
 	if err != nil {
-		return nil, err
+		return nil, myerror.WrapError(err, "Error in fetching users")
 	}
 	defer rows.Close()
 	for rows.Next() {
 		user := &user_proto.User{}
 		err := rows.Scan(&user.Id, &user.Fname, &user.City, &user.Phone, &user.Height, &user.Married)
 		if err != nil {
-			return nil, err
+			return nil, myerror.WrapError(err, "Error in scanning users")
 		}
 		users = append(users, user)
 	}
+	fmt.Printf("%#v", users)
 	return users, nil
 }
 
@@ -77,45 +77,46 @@ func (s *PostgresDB) DbSearchUsers(ctx context.Context, req *user_proto.SearchUs
 	args := []interface{}{}
 	var index int = 1
 
-	// Handle filter criteria (e.g., city="Sydney|New York|Tokyo")
-	for field, filterValue := range req.Filters {
-		filterValues := strings.Split(filterValue, "|")
-		for i, v := range filterValues {
-			if i == 0 {
-				query += fmt.Sprintf(" AND (%s = $%d", field, index)
-			} else {
-				query += fmt.Sprintf(" OR %s = $%d", field, index)
-			}
-			args = append(args, v)
-			index++
-		}
-		query += ")"
+	// Building WHERE clause dynamically
+	if req.Id != 0 {
+		query += fmt.Sprintf(" AND id = $%d", index)
+		args = append(args, req.Id)
+		index++
+	}
+	if req.Fname != "" {
+		query += fmt.Sprintf(" AND fname = $%d", index)
+		args = append(args, req.Fname)
+		index++
+	}
+	if req.City != "" {
+		query += fmt.Sprintf(" AND city = $%d", index)
+		args = append(args, req.City)
+		index++
+	}
+	if req.Phone != 0 {
+		query += fmt.Sprintf(" AND phone = $%d", index)
+		args = append(args, req.Phone)
+		index++
 	}
 
-	// Handle range filters (e.g., low_height=5.0 high_height=6.0)
-	for field, filterValue := range req.RangeFilters {
-		filterValues := strings.Split(filterValue, " ")
-		if len(filterValues) == 2 {
-			// Assuming range filters are always "low_field high_field"
-			lowValue, err := strconv.ParseFloat(filterValues[0], 64)
-			if err != nil {
-				return nil, fmt.Errorf("invalid low value for field %s: %v", field, err)
-			}
-			highValue, err := strconv.ParseFloat(filterValues[1], 64)
-			if err != nil {
-				return nil, fmt.Errorf("invalid high value for field %s: %v", field, err)
-			}
-			query += fmt.Sprintf(" AND %s BETWEEN $%d AND $%d", field, index, index+1)
-			args = append(args, lowValue, highValue)
+	if req.Married != nil {
+		query += fmt.Sprintf(" AND married = $%d", index)
+		args = append(args, req.Married.IsMarried)
+		index++
+
+	}
+
+	if req.Height != nil {
+		if req.Height.StartValue != 0.0 || req.Height.EndValue != 0.0 {
+			query += fmt.Sprintf(" AND height BETWEEN $%d AND $%d", index, index+1)
+			args = append(args, req.Height.StartValue, req.Height.EndValue)
 			index += 2
-		} else {
-			return nil, fmt.Errorf("invalid range filter for field %s: expected 'low_value high_value'", field)
 		}
 	}
-
+	// fmt.Printf("req.Height.StartValue req.Height.EndValue %#v", req.Height)
 	rows, err := s.Db.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, myerror.WrapError(err, "Error in searching users")
 	}
 	defer rows.Close()
 
@@ -124,13 +125,13 @@ func (s *PostgresDB) DbSearchUsers(ctx context.Context, req *user_proto.SearchUs
 	for rows.Next() {
 		var u user_proto.User
 		if err := rows.Scan(&u.Id, &u.Fname, &u.City, &u.Phone, &u.Height, &u.Married); err != nil {
-			return nil, err
+			return nil, myerror.WrapError(err, "Error in scanning users")
 		}
 		users = append(users, &u)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, myerror.WrapError(err, "Error in fetching users")
 	}
 
 	return users, nil
@@ -139,7 +140,7 @@ func (s *PostgresDB) DbSearchUsers(ctx context.Context, req *user_proto.SearchUs
 func (p *PostgresDB) AddUser(user *user_proto.User) (*user_proto.User, error) {
 	err := p.Db.QueryRow("INSERT INTO users (id, fname, city, phone, height, married) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id", user.Id, user.Fname, user.City, user.Phone, user.Height, user.Married).Scan(&user.Id)
 	if err != nil {
-		return nil, err
+		return nil, myerror.WrapError(err, "Error in adding user")
 	}
 	return user, nil
 }

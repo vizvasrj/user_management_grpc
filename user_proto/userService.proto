@@ -20,8 +20,21 @@ message GetUsersByIdsRequest {
 
 // Enhanced SearchUsersRequest
 message SearchUsersRequest {
-    map<string, string> filters = 1; // Map of filter criteria
-    map<string, string> range_filters = 2; // Map of range filters
+    int32 id = 1;
+    string fname = 2;
+    string city = 3;
+    int64 phone = 4;
+    Boolean married = 5;
+    HeightRange height = 6;
+}
+
+message Boolean {
+    bool is_married = 1;
+}
+
+message HeightRange {
+    float start_value = 1;
+    float end_value = 2;
 }
 
 // SearchCriteria message to define individual search conditions

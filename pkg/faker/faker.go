@@ -51,3 +51,18 @@ func GenerateFakeUsers(numUsers int) []*user_proto.User {
 	}
 	return users
 }
+
+func GetSeed() []*user_proto.User {
+	return []*user_proto.User{
+		{Id: 1, Fname: "Jane", City: "Tokyo", Phone: 1764788495, Height: 4.9, Married: true},
+		{Id: 2, Fname: "William", City: "Chicago", Phone: 3147005163, Height: 6.0, Married: true},
+		{Id: 3, Fname: "Jane", City: "Sydney", Phone: 5660612778, Height: 5.2, Married: false},
+		{Id: 4, Fname: "Olivia", City: "Paris", Phone: 7499978875, Height: 5.0, Married: false},
+		{Id: 5, Fname: "Olivia", City: "New York", Phone: 4934669609, Height: 5.8, Married: true},
+		{Id: 6, Fname: "Olivia", City: "Berlin", Phone: 3935422070, Height: 6.2, Married: false},
+		{Id: 7, Fname: "Peter", City: "Chicago", Phone: 1389433165, Height: 5.7, Married: false},
+		{Id: 8, Fname: "Susan", City: "Paris", Phone: 5307397290, Height: 6.1, Married: false},
+		{Id: 9, Fname: "Olivia", City: "Madrid", Phone: 5199527895, Height: 4.6, Married: false},
+		{Id: 10, Fname: "Olivia", City: "Madrid", Phone: 8354340417, Height: 5.5, Married: true},
+	}
+}

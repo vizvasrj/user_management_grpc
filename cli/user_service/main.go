@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"src/pkg/data"
+	"src/pkg/faker"
 	"src/pkg/service"
 	"src/user_proto"
 
@@ -14,31 +16,32 @@ import (
 
 func main() {
 	fmt.Println("service is stated")
-	db := data.GetConnection()
-	defer db.Close()
+	useDb := os.Getenv("USE_DATABASE")
 
-	pgInstance := data.NewPostgresDB(db)
-	// fakeUsers := faker.GenerateFakeUsers(10)
-	// for _, user := range fakeUsers {
-	// 	id, err := pgInstance.AddUser(user)
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// 	fmt.Println("User added with ID: ", id)
-	// }
+	s := grpc.NewServer()
 
-	// users := []*user_proto.User{}
-	// user := &user_proto.User{Id: 1, Fname: "Steve", City: "LA", Phone: 1234567890, Height: 5.8, Married: true}
-	// users = append(users, fakeUsers...)
+	if useDb == "postgres" {
+		db := data.GetConnection()
+		// defer db.Close()
+		pgInstance := data.NewPostgresDB(db)
+		user_proto.RegisterUserServiceServer(s, &service.UserService{
+			Db: pgInstance,
+		})
+	} else if useDb == "inmemory" {
+		seedUsers := faker.GetSeed()
 
-	// db = data.NewInMemoryUserRepository(users)
+		db := data.NewInMemoryUserRepository(seedUsers)
+		user_proto.RegisterUserServiceServer(s, &service.UserService{
+			Db: db,
+		})
+	} else {
+		log.Fatal("USE_DATABASE not set")
+	}
+
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-
-	s := grpc.NewServer()
-	user_proto.RegisterUserServiceServer(s, &service.UserService{Db: pgInstance})
 
 	reflection.Register(s)
 	if err := s.Serve(lis); err != nil {

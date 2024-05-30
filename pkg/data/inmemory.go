@@ -1,78 +1,71 @@
 package data
 
-// import (
-// 	"context"
-// 	"fmt"
-// 	"src/user_proto"
-// 	"strconv"
-// )
+import (
+	"context"
+	"fmt"
+	"src/user_proto"
+)
 
-// type InMemoryUser struct {
-// 	Users []*user_proto.User
-// }
+type InMemoryUser struct {
+	Users []*user_proto.User
+}
 
-// func NewInMemoryUserRepository(users []*user_proto.User) *InMemoryUser {
-// 	return &InMemoryUser{Users: users}
-// }
+func NewInMemoryUserRepository(users []*user_proto.User) *InMemoryUser {
+	return &InMemoryUser{Users: users}
+}
 
-// func (r *InMemoryUser) GetUserById(ctx context.Context, id int32) (*user_proto.User, error) {
-// 	for _, user := range r.Users {
-// 		if user.Id == id {
-// 			return user, nil
-// 		}
-// 	}
-// 	return nil, fmt.Errorf("user with ID %d not found", id)
-// }
+func (r *InMemoryUser) DbGetUserById(ctx context.Context, id int32) (*user_proto.User, error) {
+	for _, user := range r.Users {
+		if user.Id == id {
+			return user, nil
+		}
+	}
+	return nil, fmt.Errorf("user with ID %d not found", id)
+}
 
-// func (r *InMemoryUser) GetUsersByIds(ctx context.Context, ids []int32) ([]*user_proto.User, error) {
-// 	foundUsers := make([]*user_proto.User, 0)
-// 	for _, id := range ids {
-// 		for _, user := range r.Users {
-// 			if user.Id == id {
-// 				foundUsers = append(foundUsers, user)
-// 				break
-// 			}
-// 		}
-// 	}
-// 	return foundUsers, nil
-// }
+func (r *InMemoryUser) DbGetUsersByIds(ctx context.Context, ids []int32) ([]*user_proto.User, error) {
+	foundUsers := make([]*user_proto.User, 0)
+	for _, id := range ids {
+		for _, user := range r.Users {
+			if user.Id == id {
+				foundUsers = append(foundUsers, user)
+				break
+			}
+		}
+	}
+	return foundUsers, nil
+}
 
-// func (r *InMemoryUser) SearchUsers(ctx context.Context, req *user_proto.SearchUsersRequest) ([]*user_proto.User, error) {
-// 	foundUsers := make([]*user_proto.User, 0)
-
-// 	// Iterate over all criteria
-// 	for _, criterion := range req.Criteria {
-// 		// Define a function to check a single criterion
-// 		checkCriterion := func(user *user_proto.User) bool {
-// 			switch criterion.Field {
-// 			case "city":
-// 				return user.City == criterion.Value
-// 			case "married":
-// 				married, err := strconv.ParseBool(criterion.Value) // Handle string bool
-// 				if err != nil {
-// 					return false
-// 				}
-// 				return user.Married == married
-// 			case "height":
-// 				height, _ := strconv.ParseFloat(criterion.Value, 32) // Handle string float
-// 				return user.Height == float32(height)
-// 			case "phone":
-// 				phone, _ := strconv.ParseInt(criterion.Value, 10, 64) // Handle string int64
-// 				return user.Phone == phone
-// 			case "fname":
-// 				return user.Fname == criterion.Value
-// 			default:
-// 				return false // Ignore unknown fields
-// 			}
-// 		}
-
-// 		// Apply the search logic
-// 		for _, user := range r.Users {
-// 			if checkCriterion(user) {
-// 				foundUsers = append(foundUsers, user)
-// 			}
-// 			// Remove the break statement - We want to check all users
-// 		}
-// 	}
-// 	return foundUsers, nil
-// }
+func (s *InMemoryUser) DbSearchUsers(ctx context.Context, req *user_proto.SearchUsersRequest) ([]*user_proto.User, error) {
+	var filteredUsers []*user_proto.User
+	for _, u := range s.Users {
+		// Check all fields based on the request
+		if req.Id != 0 && u.Id != req.Id {
+			continue
+		}
+		if req.Fname != "" && u.Fname != req.Fname {
+			continue
+		}
+		if req.City != "" && u.City != req.City {
+			continue
+		}
+		if req.Phone != 0 && u.Phone != req.Phone {
+			continue
+		}
+		// Handle married (boolean or string)
+		if req.Married != nil {
+			if req.Married.IsMarried != u.Married {
+				continue
+			}
+		}
+		if req.Height != nil {
+			if req.Height.StartValue != 0 || req.Height.EndValue != 0 {
+				if u.Height < req.Height.StartValue || u.Height > req.Height.EndValue {
+					continue
+				}
+			}
+		}
+		filteredUsers = append(filteredUsers, u)
+	}
+	return filteredUsers, nil
+}
