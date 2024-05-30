@@ -27,6 +27,7 @@ services:
       - POSTGRES_HOST=db
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_SSLMODE=${POSTGRES_SSLMODE}
+      - USE_DATABASE=${USE_DATABASE}
     command: >
       sh -c "./init.sh"
 

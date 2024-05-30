@@ -4,6 +4,8 @@ This guide provides instructions for installing dependencies, building and runni
 
 ## You can use postgres as well as inmemory database just change `.env` with `USE_DATABASE=inmemory` or `USE_DATABASE=postgres`
 
+#### for `inmemory` database you don't need to run migrations and do postgres setup
+
 ## Installation
 
 ### Install dependencies for interacting with the GRPC server
@@ -82,6 +84,12 @@ Before testing, run database migrations with the following command, so i use `so
 ```bash
 migrate -path ./migrations -database postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost/$POSTGRES_DB?sslmode=$POSTGRES_SSLMODE up
 ```
+## Add some data to database
+
+```bash
+PGPASSWORD=${POSTGRES_PASSWORD} psql -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -d ${POSTGRES_DB} -f ./seed/seed.sql
+```
+
 
 ## Run Tests
 
