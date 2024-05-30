@@ -2,6 +2,8 @@
 
 This guide provides instructions for installing dependencies, building and running the server, testing the server, and managing migrations for a GRPC User Service.
 
+## You can use postgres as well as inmemory database just change `.env` with `USE_DATABASE=inmemory` or `USE_DATABASE=postgres`
+
 ## Installation
 
 ### Install dependencies for interacting with the GRPC server
