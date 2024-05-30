@@ -2,12 +2,13 @@ version: '3'
 services:
   db:
     image: postgres:16
-    volumes:
-      - db_data:/var/lib/postgresql/data
+    # volumes:
+    #   - db_data:/var/lib/postgresql/data
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
     ports:
       - "5432:5432"
 
@@ -27,7 +28,7 @@ services:
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_SSLMODE=${POSTGRES_SSLMODE}
     command: >
-      sh -c "/usr/local/bin/migrate -path ./migrations -database postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB} up && ./main"
+      sh -c "./init.sh"
 
-volumes:
-  db_data:
+# volumes:
+#   db_data:
